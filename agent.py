@@ -135,20 +135,62 @@ async def notify_owner(text):
 
 
 async def do_redeem(profile, key, source, dedupe=True):
-    """Send a key to a profile's bot using the USER account."""
+    """Send a key to a profile's bot, wait for its reply, and send ONE summary."""
     if dedupe:
         if key in REDEEMED:
             return False, "duplicate (already redeemed this run)"
         REDEEMED.add(key)
 
+    botname = profile["bot"]
     msg = state.get("redeem_format", "{key}").format(key=key)
-    try:
-        await user.send_message(profile["bot"], msg)
-    except Exception as e:
-        return False, f"send failed: {e}"
+    result_text = ""
+    media_msg = None
 
-    state["last"] = {"bot": profile["bot"], "key": key}
+    try:
+        async with user.conversation(botname, timeout=45, exclusive=False) as conv:
+            await conv.send_message(msg)
+            try:
+                resp = await conv.get_response(timeout=35)
+                result_text = (resp.raw_text or "").strip()
+                if resp.media:
+                    media_msg = resp
+                # Many bots send "Checking..." then EDIT it into the final result.
+                try:
+                    ed = await conv.get_edit(timeout=20)
+                    if ed:
+                        result_text = (ed.raw_text or "").strip() or result_text
+                        if ed.media:
+                            media_msg = ed
+                except asyncio.TimeoutError:
+                    pass
+            except asyncio.TimeoutError:
+                result_text = "(no reply from bot)"
+    except Exception as e:
+        await notify_owner(f"⚠️ `{key}` → {botname}\n{e}")
+        return False, str(e)
+
+    state["last"] = {"bot": botname, "key": key}
     save_config(state)
+
+    # Single consolidated message: key -> bot + result (+ file if any).
+    head = f"🔑 `{key}` → {botname}"
+    body = f"\n```\n{result_text}\n```" if result_text else ""
+    if media_msg is not None and media_msg.media:
+        path = None
+        try:
+            path = await media_msg.download_media(file=tempfile.gettempdir())
+            await bot.send_file(OWNER_ID, path, caption=head + body, parse_mode="md")
+        except Exception as e:
+            await notify_owner(head + body + f"\n(⚠️ file: {e})")
+        finally:
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
+    else:
+        await notify_owner(head + body)
+
     return True, "ok"
 
 
