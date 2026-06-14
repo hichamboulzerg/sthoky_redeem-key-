@@ -1,0 +1,21 @@
+{
+  "paused": false,
+  "focus": false,
+  "redeem_format": "/redeem {key}",
+  "profiles": [
+    {
+      "bot": "@Arshxchk2_bot",
+      "channel": -1002556821070,
+      "prefix": "SKCHK"
+    },
+    {
+      "bot": "@Knightt_OTP_bot",
+      "channel": -2540796837,
+      "prefix": "KNIGHTOTP"
+    }
+  ],
+  "last": {
+    "bot": "@Arshxchk2_bot",
+    "key": "SKCHK-G9IC-1OVC-ZB5Z"
+  }
+}

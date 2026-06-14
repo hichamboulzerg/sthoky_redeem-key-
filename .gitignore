@@ -1,0 +1,7 @@
+.env
+*.session
+*_session
+*.session-journal
+__pycache__/
+agent.log
+diag.py
