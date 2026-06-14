@@ -4,4 +4,6 @@
 *.session-journal
 __pycache__/
 agent.log
+autopush.log
 diag.py
+.git-creds
