@@ -136,12 +136,14 @@ async def notify_owner(text):
 
 async def do_redeem(profile, key, source, dedupe=True):
     """Send a key to a profile's bot, wait for its reply, and send ONE summary."""
-    if dedupe:
-        if key in REDEEMED:
-            return False, "duplicate (already redeemed this run)"
-        REDEEMED.add(key)
-
     botname = profile["bot"]
+    # Dedupe per (bot, key) so the SAME key can still be redeemed on multiple bots.
+    dedupe_key = f"{botname}|{key}"
+    if dedupe:
+        if dedupe_key in REDEEMED:
+            return False, "duplicate (already redeemed this run)"
+        REDEEMED.add(dedupe_key)
+
     msg = state.get("redeem_format", "{key}").format(key=key)
     result_text = ""
     media_msg = None
@@ -201,23 +203,22 @@ async def do_redeem(profile, key, source, dedupe=True):
 async def on_channel_message(event):
     if state.get("paused"):
         return
-    profile = profile_for_channel(event.chat_id)
-    if not profile:
+    # ALL profiles watching this channel (lets one channel feed several bots).
+    profiles = [p for p in state["profiles"] if p["channel"] == event.chat_id]
+    if not profiles:
         return
 
-    keys = extract_keys(event.raw_text, profile["prefix"])
     if state.get("debug"):
         await notify_owner(
-            f"🔎 *debug* {profile['bot']} ch `{event.chat_id}`\n"
-            f"raw: `{event.raw_text}`\n"
-            f"keys: {keys}"
+            f"🔎 *debug* ch `{event.chat_id}` ({len(profiles)} profile(s))\n"
+            f"raw: `{event.raw_text}`"
         )
-    if not keys:
-        return
 
-    for key in keys:
-        # do_redeem sends the single summary message itself.
-        await do_redeem(profile, key, source="auto")
+    for profile in profiles:
+        keys = extract_keys(event.raw_text, profile["prefix"])
+        for key in keys:
+            # do_redeem sends the single summary message itself.
+            await do_redeem(profile, key, source="auto")
 
 
 # --------------------------------------------------------------------------- #
