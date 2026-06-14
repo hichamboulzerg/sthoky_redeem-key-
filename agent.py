@@ -18,6 +18,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import time
 
 from dotenv import load_dotenv
@@ -183,18 +184,40 @@ async def on_channel_message(event):
 
 
 async def _forward_bot_reply(event, edited=False):
-    """Forward whatever a profile bot replies (result, 'already used', etc.)."""
+    """Forward whatever a profile bot replies: text (token), AND any file/document."""
     if not event.is_private:
         return
     sender = await event.get_sender()
     p = profile_for_sender(sender)
     if not p:
         return
+
     text = (event.raw_text or "").strip()
-    if not text:
+    tag = "✏️ (updated)" if edited else "📩"
+    header = f"{tag} {p['bot']} says:"
+
+    # If the bot sent a file/document/photo, download it and re-send via control bot.
+    if event.media:
+        path = None
+        try:
+            path = await event.download_media(file=tempfile.gettempdir())
+            cap = header + (f"\n```\n{text}\n```" if text else "")
+            await bot.send_file(OWNER_ID, path, caption=cap, parse_mode="md")
+        except Exception as e:
+            await notify_owner(f"{header}\n{text}\n(⚠️ couldn't forward file: {e})")
+        finally:
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
         return
-    tag = "✏️ (updated) " if edited else "📩 "
-    await notify_owner(f"{tag}*{p['bot']}* says:\n{text}")
+
+    # Text-only reply (e.g. the bot token, or "Key already used").
+    if text:
+        await bot.send_message(
+            OWNER_ID, f"{header}\n```\n{text}\n```", parse_mode="md"
+        )
 
 
 @user.on(events.NewMessage)
