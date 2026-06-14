@@ -216,60 +216,8 @@ async def on_channel_message(event):
         return
 
     for key in keys:
-        if state.get("focus"):
-            await notify_owner(f"🚨 *KEY DETECTED* `{key}` in {profile['bot']} channel")
-        ok, info = await do_redeem(profile, key, source="auto")
-        if ok:
-            await notify_owner(f"✅ Redeemed `{key}` → {profile['bot']}")
-        else:
-            await notify_owner(f"⚠️ `{key}` → {profile['bot']}: {info}")
-
-
-async def _forward_bot_reply(event, edited=False):
-    """Forward whatever a profile bot replies: text (token), AND any file/document."""
-    if not event.is_private:
-        return
-    sender = await event.get_sender()
-    p = profile_for_sender(sender)
-    if not p:
-        return
-
-    text = (event.raw_text or "").strip()
-    tag = "✏️ (updated)" if edited else "📩"
-    header = f"{tag} {p['bot']} says:"
-
-    # If the bot sent a file/document/photo, download it and re-send via control bot.
-    if event.media:
-        path = None
-        try:
-            path = await event.download_media(file=tempfile.gettempdir())
-            cap = header + (f"\n```\n{text}\n```" if text else "")
-            await bot.send_file(OWNER_ID, path, caption=cap, parse_mode="md")
-        except Exception as e:
-            await notify_owner(f"{header}\n{text}\n(⚠️ couldn't forward file: {e})")
-        finally:
-            if path and os.path.exists(path):
-                try:
-                    os.remove(path)
-                except Exception:
-                    pass
-        return
-
-    # Text-only reply (e.g. the bot token, or "Key already used").
-    if text:
-        await bot.send_message(
-            OWNER_ID, f"{header}\n```\n{text}\n```", parse_mode="md"
-        )
-
-
-@user.on(events.NewMessage)
-async def on_bot_reply(event):
-    await _forward_bot_reply(event, edited=False)
-
-
-@user.on(events.MessageEdited)
-async def on_bot_reply_edited(event):
-    await _forward_bot_reply(event, edited=True)
+        # do_redeem sends the single summary message itself.
+        await do_redeem(profile, key, source="auto")
 
 
 # --------------------------------------------------------------------------- #
@@ -399,11 +347,8 @@ async def cmd_last(event):
         await event.reply("No key has been captured yet.")
         return
     p = profile_for_bot(last["bot"]) or {"bot": last["bot"]}
-    ok, info = await do_redeem(p, last["key"], source="manual", dedupe=False)
-    if ok:
-        await event.reply(f"♻️ Re-sent `{last['key']}` → {last['bot']}", parse_mode="md")
-    else:
-        await event.reply(f"⚠️ {info}")
+    # do_redeem sends the single result message.
+    await do_redeem(p, last["key"], source="manual", dedupe=False)
 
 
 @bot.on(events.NewMessage(pattern=r"^/test\s+(\S+)\s+(\S+)"))
@@ -412,11 +357,8 @@ async def cmd_test(event):
     botname, key = event.pattern_match.group(1, 2)
     if not botname.startswith("@"):
         botname = "@" + botname
-    ok, info = await do_redeem({"bot": botname}, key.upper(), source="test", dedupe=False)
-    if ok:
-        await event.reply(f"🧪 Sent test `{key.upper()}` → {botname}", parse_mode="md")
-    else:
-        await event.reply(f"⚠️ {info}")
+    # do_redeem sends the single result message.
+    await do_redeem({"bot": botname}, key.upper(), source="test", dedupe=False)
 
 
 @bot.on(events.NewMessage(pattern=r"^/pause\b"))
