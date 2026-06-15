@@ -205,6 +205,8 @@ async def on_channel_message(event):
         return
     # ALL profiles watching this channel (lets one channel feed several bots).
     profiles = [p for p in state["profiles"] if p["channel"] == event.chat_id]
+    print(f"[evt] chat_id={event.chat_id} matched={len(profiles)} "
+          f"text={ (event.raw_text or '')[:60]!r}", flush=True)
     if not profiles:
         return
 
@@ -422,8 +424,16 @@ async def main():
     await bot.start(bot_token=BOT_TOKEN)
 
     me = await user.get_me()
-    print(f"User account: {me.first_name} (@{me.username})")
-    print(f"Watching {len(state['profiles'])} profile(s). Bot command interface live.")
+    print(f"User account: {me.first_name} (@{me.username}) id={me.id}", flush=True)
+    print(f"Watching {len(state['profiles'])} profile(s):", flush=True)
+    for p in state["profiles"]:
+        try:
+            ent = await user.get_entity(p["channel"])
+            title = getattr(ent, "title", None) or getattr(ent, "username", ent)
+            print(f"  OK  {p['bot']}  ch={p['channel']}  -> {title}", flush=True)
+        except Exception as e:
+            print(f"  ERR {p['bot']}  ch={p['channel']}  -> CANNOT ACCESS: {e}",
+                  flush=True)
     await notify_owner(
         f"🟢 *Agent online*\nWatching {len(state['profiles'])} profile(s). "
         f"Send /help for commands."

@@ -1,0 +1,4 @@
+User account: Ja (@jacksonhab) id=7389719291
+Watching 2 profile(s):
+  OK  @Arshxchk2_bot  ch=-1002556821070  -> ⏤͟͟͞͞ 𝙎𝙆 𝙏𝙀𝘾𝙃 ™
+  ERR @Knightt_OTP_bot  ch=-2540796837  -> CANNOT ACCESS: Invalid object ID for a chat. Make sure to pass the right types, for instance making sure that the request is designed for chats (not channels/megagroups) or otherwise look for a different one more suited\nAn example working with a megagroup and AddChatUserRequest, it will fail because megagroups are channels. Use InviteToChannelRequest instead (caused by GetChatsRequest)

@@ -1,6 +1,6 @@
 {
-  "paused": true,
-  "focus": true,
+  "paused": false,
+  "focus": false,
   "redeem_format": "/redeem {key}",
   "profiles": [
     {
@@ -10,7 +10,7 @@
     },
     {
       "bot": "@Knightt_OTP_bot",
-      "channel": -2540796837,
+      "channel": -1002540796837,
       "prefix": "KNIGHTOTP"
     }
   ],
@@ -18,5 +18,5 @@
     "bot": "@Arshxchk2_bot",
     "key": "SKCHK-G9IC-1OVC-ZB5Z"
   },
-  "debug": true
+  "debug": false
 }
