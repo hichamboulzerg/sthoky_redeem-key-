@@ -206,8 +206,37 @@ async def do_redeem(profile, key, source, dedupe=True):
 # --------------------------------------------------------------------------- #
 # USER client: channel watcher
 # --------------------------------------------------------------------------- #
+async def check_alerts(event):
+    """Forward messages that match a keyword alert (independent of pause)."""
+    text = event.raw_text or ""
+    low = text.lower()
+    for a in state.get("alerts", []):
+        if a["channel"] != event.chat_id:
+            continue
+        if a["contains"].lower() not in low:
+            continue
+        try:
+            if event.media:
+                path = None
+                try:
+                    path = await event.download_media(file=tempfile.gettempdir())
+                    await bot.send_file(OWNER_ID, path, caption=text[:1024])
+                finally:
+                    if path and os.path.exists(path):
+                        try:
+                            os.remove(path)
+                        except Exception:
+                            pass
+            else:
+                await bot.send_message(OWNER_ID, f"🔔 {a['contains']}\n\n{text}")
+        except Exception as e:
+            print(f"[alert] {e}", flush=True)
+
+
 @user.on(events.NewMessage)
 async def on_channel_message(event):
+    await check_alerts(event)
+
     if state.get("paused"):
         return
     # ALL profiles watching this channel (lets one channel feed several bots).
@@ -247,6 +276,10 @@ HELP_TEXT = (
     "`/listbots` — show all profiles\n"
     "`/addbot BOT CHANNEL PREFIX` — add a profile\n"
     "`/removebot BOT` — remove a profile\n\n"
+    "*Alerts* (forward messages containing a keyword)\n"
+    "`/listalerts` — show alerts\n"
+    "`/addalert CHANNEL TEXT` — forward msgs containing TEXT\n"
+    "`/removealert CHANNEL` — remove alerts for a channel\n\n"
     "*Redeem*\n"
     "`/setformat /redeem {key}` — set what gets sent\n"
     "`/focus` — high alert mode (toggle)\n"
@@ -311,6 +344,50 @@ async def cmd_removebot(event):
     state["profiles"].remove(p)
     save_config(state)
     await event.reply(f"🗑️ Removed profile for {p['bot']}.")
+
+
+@bot.on(events.NewMessage(pattern=r"^/listalerts\b"))
+@owner_only
+async def cmd_listalerts(event):
+    alerts = state.get("alerts", [])
+    if not alerts:
+        await event.reply("No alerts. Add one with `/addalert CHANNEL TEXT`.", parse_mode="md")
+        return
+    lines = ["*Alerts:*"]
+    for i, a in enumerate(alerts, 1):
+        lines.append(f"{i}. `{a['channel']}` contains `{a['contains']}`")
+    await event.reply("\n".join(lines), parse_mode="md")
+
+
+@bot.on(events.NewMessage(pattern=r"^/addalert\s+(\S+)\s+(.+)"))
+@owner_only
+async def cmd_addalert(event):
+    channel, contains = event.pattern_match.group(1, 2)
+    try:
+        chan = normalize_channel(channel)
+    except ValueError:
+        await event.reply("❌ CHANNEL must be a numeric id or @username.")
+        return
+    state.setdefault("alerts", []).append({"channel": chan, "contains": contains.strip()})
+    save_config(state)
+    await event.reply(
+        f"🔔 Alert added: `{chan}` contains `{contains.strip()}`", parse_mode="md"
+    )
+
+
+@bot.on(events.NewMessage(pattern=r"^/removealert\s+(\S+)"))
+@owner_only
+async def cmd_removealert(event):
+    try:
+        chan = normalize_channel(event.pattern_match.group(1))
+    except ValueError:
+        await event.reply("❌ Invalid channel.")
+        return
+    before = len(state.get("alerts", []))
+    state["alerts"] = [a for a in state.get("alerts", []) if a["channel"] != chan]
+    save_config(state)
+    removed = before - len(state["alerts"])
+    await event.reply(f"🗑️ Removed {removed} alert(s) for `{chan}`.", parse_mode="md")
 
 
 @bot.on(events.NewMessage(pattern=r"^/setformat\s+(.+)"))
@@ -441,6 +518,14 @@ async def main():
         except Exception as e:
             print(f"  ERR {p['bot']}  ch={p['channel']}  -> CANNOT ACCESS: {e}",
                   flush=True)
+    for a in state.get("alerts", []):
+        try:
+            ent = await user.get_entity(a["channel"])
+            title = getattr(ent, "title", None) or getattr(ent, "username", ent)
+            print(f"  ALERT ch={a['channel']} '{a['contains']}' -> {title}",
+                  flush=True)
+        except Exception as e:
+            print(f"  ALERT ch={a['channel']} -> CANNOT ACCESS: {e}", flush=True)
     await notify_owner(
         f"🟢 *Agent online*\nWatching {len(state['profiles'])} profile(s). "
         f"Send /help for commands."
