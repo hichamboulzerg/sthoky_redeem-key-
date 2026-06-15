@@ -19,7 +19,18 @@
     "key": "SKCHK-G9IC-1OVC-ZB5Z"
   },
   "alerts": [
-    { "channel": -1003601805762, "contains": "STATUS: CHARGED" }
+    {
+      "channel": -1003601805762,
+      "contains": "STATUS: CHARGED"
+    },
+    {
+      "channel": -1002554500064,
+      "contains": "𝗢𝗿𝗱𝗲𝗿 𝗣𝗹𝗮𝗰𝗲𝗱!"
+    },
+    {
+      "channel": -1002554500064,
+      "contains": "𝗢𝗿𝗱𝗲𝗿 𝗣𝗹𝗮𝗰𝗲𝗱!"
+    }
   ],
   "debug": false
 }
