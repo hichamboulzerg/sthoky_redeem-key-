@@ -1,6 +1,6 @@
 {
   "paused": false,
-  "focus": false,
+  "focus": true,
   "redeem_format": "/redeem {key}",
   "profiles": [
     {
