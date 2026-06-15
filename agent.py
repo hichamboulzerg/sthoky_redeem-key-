@@ -66,15 +66,22 @@ state = load_config()
 # Helpers
 # --------------------------------------------------------------------------- #
 def normalize_channel(value):
-    """Accept '1002556821070', '-1002556821070' or '@name'. Return int or str."""
+    """Normalize a channel id to the -100... marked form Telethon expects.
+
+    Accepts: '@name', '-1002556821070', '1002556821070', or a raw internal
+    id like '2540796837' (which becomes -1002540796837).
+    """
     value = str(value).strip()
     if value.startswith("@"):
         return value
-    n = int(value)
-    # Telegram channels/supergroups use the -100... marked form.
-    if n > 0:
-        n = -n
-    return n
+    digits = value.lstrip("-")
+    if not digits.isdigit():
+        raise ValueError(f"bad channel id: {value}")
+    # Already a full marked channel id (e.g. 1002556821070 / -1002556821070).
+    if digits.startswith("100") and len(digits) >= 13:
+        return -int(digits)
+    # Raw internal channel id -> add the -100 supergroup prefix.
+    return int("-100" + digits)
 
 
 def extract_keys(text, prefix):
